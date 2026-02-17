@@ -1,0 +1,494 @@
+generator client {
+  provider = "prisma-client"
+}
+
+datasource db {
+  provider = "mongodb"
+}
+
+//user model with profile and fitness plan
+model User {
+  id         String     @id @default(auto()) @map("_id") @db.ObjectId
+  firstName  String
+  lastName   String?
+  email      String     @unique
+  password   String
+  role       Role       @default(USER) // USER | SELLER | ADMIN
+  status     UserStatus @default(ACTIVE) // ACTIVE | INACTIVE | SUSPENDED
+  profile    Profile?
+  isVerified Boolean    @default(false)
+  otp        String?
+  otpExpiry  DateTime?
+  isDeleted  Boolean    @default(false)
+  fitnessPlan FitnessPlan?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  notifications  Notification[]
+  nutritionPlans NutritionPlan[]
+  workoutLogs    WorkoutLog[]
+  posts          Post[]
+  likes          Like[]
+  comments       Comment[]
+  userChallenges      UserChallenge[]
+  orders              Order[]
+  vendors             Vendor?
+  reviews             Review[]
+  subscriptions       UserSubscription[]
+  nutritionLogs       NutritionLog[]
+  hydrationLogs       HydrationLog[]
+  //relationships
+  followers Follower[] @relation("UserFollowers")
+  following Follower[] @relation("UserFollowing")
+  sentConnections     Connection[]       @relation("SentConnections")
+  receivedConnections Connection[]       @relation("ReceivedConnections")
+
+  @@map("users")
+}
+
+enum Role {
+  USER
+  SELLER
+  ADMIN
+}
+
+enum UserStatus {
+  ACTIVE
+  INACTIVE
+  SUSPENDED
+}
+
+model Profile {
+  id                  String            @id @default(auto()) @map("_id") @db.ObjectId
+  userId              String            @unique @db.ObjectId
+  address             String?
+  phone               String?
+  image               String?
+  fitnessGoal         FitnessGoal
+  healthConditions    String?
+  dietRestrictions    String?
+  fitnessLevel        FitnessLevel
+  height              String
+  weight              String
+  access_equipment    AccessToEquipment
+  equipment_details   EquipmentType
+  sessions_per_week   Int
+  session_duration    Int // in minutes
+  previous_injuries   String
+  dietary_preferences DietaryPreference
+  biggest_challenge   BiggestChallenge
+  blood_group         BloodGroup
+  streak              Int               @default(0)
+  createdAt           DateTime          @default(now())
+  updatedAt           DateTime          @updatedAt
+
+  user User @relation(fields: [userId], references: [id])
+}
+
+model Connection {
+  id         String           @id @default(auto()) @map("_id") @db.ObjectId
+  senderId   String           @db.ObjectId
+  receiverId String           @db.ObjectId
+  status     ConnectionStatus @default(PENDING)
+  createdAt  DateTime         @default(now())
+  updatedAt  DateTime         @updatedAt
+
+  // Relations
+  sender   User @relation("SentConnections", fields: [senderId], references: [id], onDelete: Cascade)
+  receiver User @relation("ReceivedConnections", fields: [receiverId], references: [id], onDelete: Cascade)
+
+  @@unique([senderId, receiverId], name: "unique_connection")
+}
+
+enum ConnectionStatus {
+  PENDING
+  ACCEPTED
+  REJECTED
+}
+
+model Notification {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  userId    String   @db.ObjectId
+  type      String // e.g. "CONNECTION_REQUEST", "CONNECTION_ACCEPTED", "CONNECTION_REJECTED"
+  message   String
+  isRead    Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relation
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model FitnessPlan {
+  id        String    @id @default(auto()) @map("_id") @db.ObjectId
+  userId    String    @unique @db.ObjectId
+  planData  Json // AI-generated workout + nutrition plan
+  startDate DateTime  @default(now())
+  endDate   DateTime?
+  progress  Json // e.g., sets, reps, weights, calories burned
+  user      User      @relation(fields: [userId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model NutritionPlan {
+  id            String @id @default(auto()) @map("_id") @db.ObjectId
+  userId        String @db.ObjectId
+  planData      Json // AI-generated nutrition info
+  dailyCalories Int
+  macros        Json // { protein, carbs, fat }
+  user          User   @relation(fields: [userId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+}
+
+model WorkoutLog {
+  id             String   @id @default(auto()) @map("_id") @db.ObjectId
+  userId         String   @db.ObjectId
+  date           DateTime @default(now())
+  exercises      Json // { exerciseName, sets, reps, weight }
+  caloriesBurned Int?
+  user           User     @relation(fields: [userId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+}
+
+//social and community features (optional, can be implemented later)
+model Post {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  userId    String   @db.ObjectId
+  content   String
+  imageUrls String[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  likes    Like[]
+  comments Comment[]
+  user     User      @relation(fields: [userId], references: [id])
+}
+
+model Like {
+  id     String @id @default(auto()) @map("_id") @db.ObjectId
+  postId String @db.ObjectId
+  userId String @db.ObjectId
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  post      Post     @relation(fields: [postId], references: [id])
+  user      User     @relation(fields: [userId], references: [id])
+
+  @@unique([postId, userId], name: "post_user_like_unique")
+}
+
+model Comment {
+  id      String @id @default(auto()) @map("_id") @db.ObjectId
+  postId  String @db.ObjectId
+  userId  String @db.ObjectId
+  content String
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  post      Post     @relation(fields: [postId], references: [id])
+  user      User     @relation(fields: [userId], references: [id])
+}
+
+model Follower {
+  id         String @id @default(auto()) @map("_id") @db.ObjectId
+  userId     String @db.ObjectId
+  followerId String @db.ObjectId
+  
+  user       User   @relation("UserFollowers", fields: [userId], references: [id])
+  follower   User   @relation("UserFollowing", fields: [followerId], references: [id])
+
+  @@unique([userId, followerId], name: "user_follower_unique")
+}
+
+model Challenge {
+  id           String          @id @default(auto()) @map("_id") @db.ObjectId
+  name         String
+  status       ChallengeStatus
+  description  String
+  startDate    DateTime
+  endDate      DateTime
+  participants UserChallenge[]
+}
+
+enum ChallengeStatus {
+  UPCOMING
+  ONGOING
+  COMPLETED
+  CANCELLED
+}
+
+model UserChallenge {
+  id          String              @id @default(auto()) @map("_id") @db.ObjectId
+  userId      String              @db.ObjectId
+  challengeId String              @db.ObjectId
+  status      ChallengeUserStatus
+  progress    Json
+  user        User                @relation(fields: [userId], references: [id])
+  challenge   Challenge           @relation(fields: [challengeId], references: [id])
+
+  @@index([userId])
+}
+
+// vendor and product models (optional, can be implemented later)
+model Vendor {
+  id                 String       @id @default(auto()) @map("_id") @db.ObjectId
+  userId             String       @unique @db.ObjectId
+  businessName       String
+  shortDescription   String
+  tradingLicense     String
+  registrationNumber String
+  phone              String
+  address            String
+  status             VendorStatus @default(ACTIVE)
+  products           Product[]
+  orders             Order[]
+  user               User         @relation(fields: [userId], references: [id])
+}
+
+enum VendorStatus {
+  ACTIVE
+  SUSPENDED
+}
+
+model Product {
+  id          String      @id @default(auto()) @map("_id") @db.ObjectId
+  vendorId    String      @db.ObjectId
+  name        String
+  description String
+  price       Float
+  stock       Int
+  images      String[]
+  rating      Float       @default(0)
+  reviewCount Int         @default(0)
+  reviews     Review[]
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+  vendor      Vendor      @relation(fields: [vendorId], references: [id])
+  orderItems  OrderItem[]
+
+  @@index([vendorId])
+}
+
+model Review {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  productId String   @db.ObjectId
+  userId    String   @db.ObjectId
+  rating    Int
+  comment   String?
+  createdAt DateTime @default(now())
+  product   Product  @relation(fields: [productId], references: [id])
+  user      User     @relation(fields: [userId], references: [id])
+
+  @@unique([productId, userId], name: "product_user_unique")
+  @@index([productId])
+}
+
+//order and payment models (optional, can be implemented later)
+model Order {
+  id          String      @id @default(auto()) @map("_id") @db.ObjectId
+  userId      String      @db.ObjectId
+  vendorId    String      @db.ObjectId
+  orderItems  OrderItem[]
+  totalAmount Float
+  status      OrderStatus @default(PENDING)
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+  user        User        @relation(fields: [userId], references: [id])
+  vendor      Vendor      @relation(fields: [vendorId], references: [id])
+  payments    Payment[]
+
+  @@index([userId])
+  @@index([vendorId])
+}
+
+model OrderItem {
+  id        String @id @default(auto()) @map("_id") @db.ObjectId
+  orderId   String @db.ObjectId
+  productId String @db.ObjectId
+  quantity  Int
+  price     Float
+
+  order   Order   @relation(fields: [orderId], references: [id])
+  product Product @relation(fields: [productId], references: [id])
+
+  @@index([orderId])
+  @@index([productId])
+}
+
+enum OrderStatus {
+  PENDING
+  SHIPPED
+  DELIVERED
+  CANCELED
+}
+
+model Payment {
+  id        String        @id @default(auto()) @map("_id") @db.ObjectId
+  orderId   String        @db.ObjectId
+  vendorId  String        @db.ObjectId
+  amount    Float
+  method    PaymentMethod
+  status    PaymentStatus
+  createdAt DateTime      @default(now())
+  order     Order         @relation(fields: [orderId], references: [id])
+
+  @@index([orderId])
+}
+
+enum SubscriptionStatus {
+  ACTIVE
+  CANCELLED
+  EXPIRED
+  PENDING
+}
+
+enum BillingPeriod {
+  MONTHLY
+  YEARLY
+}
+
+model SubscriptionPlan {
+  id            String        @id @default(auto()) @map("_id") @db.ObjectId
+  name          String        @unique
+  price         Float         @default(0) // human readable price in base currency (e.g. 9.99)
+  currency      String        @default("usd")
+  billingPeriod BillingPeriod @default(MONTHLY)
+  isPopular     Boolean       @default(false)
+  features      Json
+  benefits      String[]
+  productId     String? // Stripe product id (nullable for free plans)
+  pricingId     String? // Stripe price id (nullable for free/lifetime)
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  // Relations
+  userSubscriptions UserSubscription[]
+}
+
+model UserSubscription {
+  id            String             @id @default(auto()) @map("_id") @db.ObjectId
+  userId        String             @db.ObjectId
+  planId        String             @db.ObjectId
+  status        SubscriptionStatus @default(ACTIVE)
+  startDate     DateTime           @default(now())
+  endDate       DateTime?
+  cancelAt      DateTime?
+  paymentMethod String? // "stripe", "paypal" etc
+  transactionId String? // store payment gateway ID (subscription id / payment id)
+  autoRenew     Boolean            @default(true)
+  createdAt     DateTime           @default(now())
+  updatedAt     DateTime           @updatedAt
+
+  // Relations
+  user User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  plan SubscriptionPlan @relation(fields: [planId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, planId], name: "userId_planId_unique")
+  @@index([userId])
+}
+
+model NutritionLog {
+  id       String   @id @default(auto()) @map("_id") @db.ObjectId
+  userId   String   @db.ObjectId
+  calories Int
+  protein  Int
+  carbs    Int
+  fat      Int
+  date     DateTime @default(now())
+  user     User     @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+}
+
+model HydrationLog {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  userId      String   @db.ObjectId
+  waterIntake Int // ml
+  date        DateTime @default(now())
+  user        User     @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+}
+
+enum PaymentMethod {
+  STRIPE
+}
+
+enum PaymentStatus {
+  PENDING
+  SUCCESS
+  FAILED
+}
+
+enum ChallengeUserStatus {
+  JOINED
+  LEFT
+  COMPLETED
+}
+
+enum BloodGroup {
+  A_POSITIVE
+  A_NEGATIVE
+  B_POSITIVE
+  B_NEGATIVE
+  AB_POSITIVE
+  AB_NEGATIVE
+  O_POSITIVE
+  O_NEGATIVE
+}
+
+enum BiggestChallenge {
+  MOTIVATION
+  TIME_MANAGEMENT
+  INJURIES
+  LACK_OF_KNOWLEDGE
+  OTHER
+}
+
+enum DietaryPreference {
+  VEGETARIAN
+  VEGAN
+  PESCATARIAN
+  KETOGENIC
+  PALEO
+  MEDITERRANEAN
+  OTHER
+}
+
+enum AccessToEquipment {
+  GYM
+  HOME
+  BOTH
+}
+
+enum EquipmentType {
+  DUMBBELLS
+  BARBELL
+  KETTLEBELL
+  RESISTANCE_BANDS
+  BODYWEIGHT
+  OTHER
+}
+
+enum FitnessGoal {
+  WEIGHT_LOSS
+  MUSCLE_GAIN
+  MAINTENANCE
+  GENERAL_FITNESS
+}
+
+enum FitnessLevel {
+  BEGINNER
+  INTERMEDIATE
+  ADVANCED
+}
