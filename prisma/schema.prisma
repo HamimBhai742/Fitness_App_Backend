@@ -1,5 +1,5 @@
 generator client {
-  provider = "prisma-client"
+  provider = "prisma-client-js"
 }
 
 datasource db {
@@ -13,8 +13,8 @@ model User {
   lastName   String?
   email      String     @unique
   password   String
-  role       Role       @default(USER) // USER | SELLER | ADMIN
-  status     UserStatus @default(ACTIVE) // ACTIVE | INACTIVE | SUSPENDED
+  role       Role       @default(USER)     // USER | SELLER | ADMIN
+  status     UserStatus @default(ACTIVE)  // ACTIVE | INACTIVE | SUSPENDED
   profile    Profile?
   isVerified Boolean    @default(false)
   otp        String?
