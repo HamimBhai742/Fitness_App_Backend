@@ -10,6 +10,7 @@ async function main() {
   // Express + HTTP server
   const httpServer: Server = app.listen(port, () => {
     console.log(`✅ Server is running on port ${port}`);
+ 
     connecteDB();
   });
 

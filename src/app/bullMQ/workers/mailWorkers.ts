@@ -1,0 +1,96 @@
+import { redis, redisOptions } from "../../lib/redis/redisOptions";
+import { Worker } from "bullmq";
+
+import { emailTemplate } from "../../utils/emailTemplates/forgetPasswordOtpTemplate";
+import { twoFactorOtpTemplate } from "../../utils/emailTemplates/twoFactorOtpTemplate";
+// import { registrationOtpTemplate } from "../../utils/emailTemplates/registrationOtpTemplate";
+import { passwordChangedTemplate } from "../../utils/emailTemplates/passwordChangedTemplate";
+import { passwordResetTemplate } from "../../utils/emailTemplates/passwordResetTemplate";
+import { parentApprovalOtpTemplate } from "../../utils/emailTemplates/parentApprovalOtpTemplate";
+import { registrationOtpTemplate } from "../../utils/emailTemplates/registrationOtpTemplate";
+import { passwordResetSuccessTemplate } from "../../utils/emailTemplates/passwordResetSuccessTemplate";
+import { registrationSuccessTemplate } from "../../utils/emailTemplates/registrationSuccessTemplate";
+import { forgetPasswordResetLinkTemplate } from "../../utils/emailTemplates/forgetPasswordResetLinkTemplate";
+
+export const otpEmailWorker = new Worker(
+    "otp-queue-email",
+    async (job) => {
+        switch (job.name) {
+             case "forgetPassword":
+                {
+                    const { userName, email, resetLink, subject } = job.data;
+                    await forgetPasswordResetLinkTemplate(userName, subject, email, resetLink);
+                    return "Otp end job completed";
+                }
+            case "forgetPasswordOtp":
+                {
+                    const { userName, email, otpCode, subject } = job.data;
+                    await emailTemplate.forgetPasswordOtpTemplate(userName, subject, email, otpCode);
+                    return "Otp end job completed";
+                }
+            // handle verify
+            case "registrationOtp":
+                {
+                    const { userName, email, otpCode, subject } = job.data;
+                    console.log(userName)
+                    await registrationOtpTemplate(userName, subject, email, otpCode);
+                    return "Otp end job completed";
+                }
+            case "twoFactorOtp":
+                {
+                    const { userName, email, otpCode, subject } = job.data;
+                    await twoFactorOtpTemplate(userName, subject, email, otpCode);
+                    return "Otp end job completed";
+                }
+            case "passwordChangedConfirmation":
+                {
+                    const { userName, email, subject, secureLink } = job.data;
+                    await passwordChangedTemplate(userName, subject, email, secureLink);
+                    return "Otp end job completed";
+                }
+            case "passwordResetRequest":
+                {
+                    const { userName, email, subject, otpCode } = job.data;
+                    await passwordResetTemplate(userName, subject, email, otpCode);
+                    return "Otp end job completed";
+                }
+            case "parentApprovalOtp":
+                {
+                    const { userName, email, subject, otpCode } = job.data;
+                    await parentApprovalOtpTemplate(userName, subject, email, otpCode);
+                    return "Otp end job completed";
+                }
+                 case "resetPasswordSuccess":
+                {
+                    const {userName  ,email, subject, loginLink } = job.data;
+                    await passwordResetSuccessTemplate(userName, subject, email, loginLink);
+                    return "Otp end job completed";
+                }
+
+                case "registrationSuccess":
+                {
+                    const { userName, email, loginLink, subject } = job.data;
+                    await registrationSuccessTemplate(userName, subject, email, loginLink);
+                    return "Otp end job completed";
+                }
+                
+            // handle verify
+
+
+            case "resendParentOtp":
+                // handle resend
+                break;
+        }
+    },
+    { connection: redisOptions }
+);
+
+otpEmailWorker.on("failed", (job, err) => {
+    console.log(`❌ OTP job failed: ${job?.id}`, err);
+});
+
+otpEmailWorker.on("completed", (job) => {
+    console.log(`✅ OTP job completed: ${job.id}`);
+});
+
+
