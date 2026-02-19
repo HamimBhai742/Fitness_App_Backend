@@ -10,4 +10,3 @@ export const resetPasswordSchema = z.object({
   message: "Passwords do not match",
   path: ["confirmPassword"],
 });
-
