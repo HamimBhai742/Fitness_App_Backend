@@ -1,6 +1,7 @@
 import express from 'express';
 import router from './app/routes';
 import { startOtpCleaner } from './app/lib/cron';
+import { globalErrorHandler } from './app/middleware/globalErrorHandle';
 
 export const app =express();
 
@@ -12,3 +13,5 @@ startOtpCleaner();
 app.get('/', (req, res) => {
     res.send('Hello World!');
 });
+
+app.use(globalErrorHandler)
