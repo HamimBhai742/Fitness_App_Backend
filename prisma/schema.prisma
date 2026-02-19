@@ -4,6 +4,7 @@ generator client {
 
 datasource db {
   provider = "mongodb"
+  url      = env("DATABASE_URL")
 }
 
 //user model with profile and fitness plan
@@ -21,6 +22,8 @@ model User {
   otpExpiry  DateTime?
   isDeleted  Boolean    @default(false)
   fitnessPlan FitnessPlan?
+  resetPasswordToken String?
+  resetPasswordTokenExpiry DateTime?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -37,6 +40,7 @@ model User {
   subscriptions       UserSubscription[]
   nutritionLogs       NutritionLog[]
   hydrationLogs       HydrationLog[]
+  
   //relationships
   followers Follower[] @relation("UserFollowers")
   following Follower[] @relation("UserFollowing")

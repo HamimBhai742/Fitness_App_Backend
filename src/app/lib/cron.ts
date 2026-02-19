@@ -15,4 +15,16 @@ export const startOtpCleaner = () => {
       },
     });
   });
+
+  cron.schedule("* * * * *", async () => {
+    await prisma.user.updateMany({
+      where: {
+        resetPasswordTokenExpiry: { lt: new Date() },
+      },
+      data: {
+        resetPasswordToken: null,
+        resetPasswordTokenExpiry: null,
+      },
+    });
+  });
 };
